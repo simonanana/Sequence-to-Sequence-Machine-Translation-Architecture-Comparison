@@ -9,7 +9,6 @@ A systematic empirical comparison of five sequence-to-sequence (seq2seq) encoder
 for **English → French neural machine translation**, implemented from scratch in PyTorch.
 Models are evaluated on ROUGE-1 and ROUGE-2 F1 scores across a consistent training setup.
 
----
 
 ## Project Overview
 
@@ -25,7 +24,6 @@ Models are evaluated on ROUGE-1 and ROUGE-2 F1 scores across a consistent traini
 final training loss (1.33), demonstrating that targeted alignment mechanisms outperform raw
 architectural complexity on constrained, short-sentence datasets.
 
----
 
 ## Dataset
 
@@ -36,7 +34,6 @@ architectural complexity on constrained, short-sentence datasets.
 - **Split:** 90 / 10 train–test (19,105 train · 2,123 test), `random_state=42`
 - **Vocabulary:** French 6,376 tokens · English 4,210 tokens
 
----
 
 ## Architecture Details
 
@@ -68,7 +65,6 @@ architectural complexity on constrained, short-sentence datasets.
 | `DecoderLSTM` | LSTM, Bi-LSTM |
 | `DecoderWithAttention` | GRU + Attention (vectorised multiplicative / Bahdanau-style) |
 
----
 
 ## Key Results & Analysis
 
@@ -99,8 +95,6 @@ Final NLL Loss after 3 epochs:
   Transformer   : 1.80  ← highest
 ```
 
----
-
 ## Repository Structure
 
 ```
@@ -111,8 +105,6 @@ seq2seq-machine-translation/
     ├── rouge_comparison.png           # ROUGE bar chart
     └── loss_curves.png                # Training loss curves
 ```
-
----
 
 ## Getting Started
 
@@ -135,7 +127,6 @@ jupyter notebook seq2seq_machine_translation.ipynb
 > ⚠️ Training all 5 experiments takes ~80–100 minutes on a T4 GPU. Each experiment can be run
 > independently; cells 1–5 (setup + data) must be executed first.
 
----
 
 ## Dependencies
 
@@ -149,7 +140,6 @@ jupyter notebook seq2seq_machine_translation.ipynb
 | pandas | 1.5+ |
 | matplotlib | 3.5+ |
 
----
 
 ## Practical Recommendations
 
@@ -167,7 +157,6 @@ jupyter notebook seq2seq_machine_translation.ipynb
 - Augment training data to 50K+ pairs via back-translation
 - Use warmup + cosine-annealing LR schedule for LSTM / Transformer
 
----
 
 ## Citation
 
@@ -182,7 +171,6 @@ If you use this code or findings in your research, please cite:
 }
 ```
 
----
 
 ## License
 
