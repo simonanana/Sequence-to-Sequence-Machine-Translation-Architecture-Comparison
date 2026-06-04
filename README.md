@@ -157,21 +157,6 @@ jupyter notebook seq2seq_machine_translation.ipynb
 - Augment training data to 50K+ pairs via back-translation
 - Use warmup + cosine-annealing LR schedule for LSTM / Transformer
 
-
-## Citation
-
-If you use this code or findings in your research, please cite:
-
-```bibtex
-@misc{seq2seq_arch_comparison,
-  title  = {Sequence-to-Sequence Machine Translation: Architecture Comparison},
-  author = {<Your Name>},
-  year   = {2025},
-  note   = {NLP course project, Nanyang Technological University}
-}
-```
-
-
 ## License
 
 This project is released under the [MIT License](LICENSE).
