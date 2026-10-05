@@ -1,162 +1,141 @@
-# Seq2Seq Machine Translation: Architecture Comparison
+# Seq2Seq Machine Translation: Encoder Architecture Comparison
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<YOUR_USERNAME>/seq2seq-machine-translation/blob/main/seq2seq_machine_translation.ipynb)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)](https://pytorch.org/)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/simonanana/Sequence-to-Sequence-Machine-Translation-Architecture-Comparison/blob/main/seq2seq_machine_translation.ipynb)
 
-A systematic empirical comparison of five sequence-to-sequence (seq2seq) encoder architectures
-for **English → French neural machine translation**, implemented from scratch in PyTorch.
-Models are evaluated on ROUGE-1 and ROUGE-2 F1 scores across a consistent training setup.
+A controlled comparison of five encoder designs for **French → English** neural machine
+translation, implemented in PyTorch and evaluated with ROUGE-1 and ROUGE-2 F1 on a held-out test set.
 
+*Coursework for MH6812, Nanyang Technological University. The data pipeline and the baseline GRU
+encoder–decoder are adapted from the PyTorch tutorial
+[NLP From Scratch: Translation with a Sequence to Sequence Network and Attention](https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html).*
 
-## Project Overview
+## Repository contents
 
-| Experiment | Encoder | Decoder | ROUGE-1 F1 | ROUGE-2 F1 | Δ vs Baseline |
-|:---:|---|---|:---:|:---:|:---:|
-| 1 | **GRU** *(baseline)* | GRU | 0.6144 | 0.4280 | — |
-| 2 | LSTM | LSTM | 0.5859 | 0.3970 | −4.6% / −7.2% |
-| 3 | Bi-LSTM | LSTM | 0.5959 | 0.4070 | −3.0% / −4.9% |
-| 4 | **GRU + Attention** ✅ | GRU | **0.6309** | **0.4360** | **+2.7% / +1.9%** |
-| 5 | Transformer Encoder | GRU | 0.5345 | 0.3495 | −13.0% / −18.3% |
+```
+seq2seq-machine-translation-architecture-comparison/
+├── seq2seq_machine_translation.ipynb   # Corrected notebook for all five experiments
+├── loss_comparison.png                 # Training loss curves from the original run
+├── results/
+│   └── original_run_log.txt            # Full output of the original run (source of all reported numbers)
+└── README.md
+```
 
-**Key finding:** Attention-augmented GRU achieves the best overall performance and the lowest
-final training loss (1.33), demonstrating that targeted alignment mechanisms outperform raw
-architectural complexity on constrained, short-sentence datasets.
+Re-running the notebook writes `results/results.csv` and `results/loss_comparison_rerun.png`.
 
+## Data
 
-## Dataset
-
-- **Source:** [Tatoeba English–French pairs](http://www.manythings.org/anki/) (`fra-eng.zip`)
-- **Filtering:** Maximum sentence length of 15 words; sentences starting with common subject–verb
-  prefixes (*I am, He is, She is, You are, We are, They are*) only
-- **Size after filtering:** 21,228 sentence pairs
-- **Split:** 90 / 10 train–test (19,105 train · 2,123 test), `random_state=42`
-- **Vocabulary:** French 6,376 tokens · English 4,210 tokens
-
-
-## Architecture Details
-
-### Shared Hyperparameters
-
-| Parameter | Value |
+| Item | Value |
 |---|---|
-| Hidden dimension | 256 |
-| Training epochs | 3 |
-| Teacher-forcing ratio | 0.5 |
-| Optimiser | SGD |
-| Learning rate | 0.01 |
-| Loss function | NLLLoss |
+| Source | Tatoeba English–French pairs via [manythings.org](http://www.manythings.org/anki/) (`fra-eng.zip`) |
+| Direction | French (source) → English (target) |
+| Filtering | Both sides shorter than 15 words; English side starts with *i am, he is, she is, you are, we are, they are* (or their contractions) |
+| Pairs | 239,189 read, 21,228 kept |
+| Split | 90 / 10: 19,105 training and 2,123 test pairs (`random_state=42`) |
+| Vocabulary | French 6,376 words, English 4,210 words (including SOS and EOS) |
 
-### Encoders
+## Setup
 
-| Encoder | Description |
+All five experiments share the same settings:
+
+| Setting | Value |
 |---|---|
-| `EncoderRNN` | Single-direction GRU, processes one token at a time |
-| `EncoderLSTM` | LSTM with separate hidden & cell states |
-| `EncoderBiLSTM` | Bidirectional LSTM; forward & backward hidden states merged via summation |
-| `TransformerEncoder` | 2-layer PyTorch `TransformerEncoder` with learnable positional embeddings; mean-pooled context vector |
+| Hidden size | 256 |
+| Epochs | 3 (57,315 single-pair updates) |
+| Optimiser | SGD, learning rate 0.01 |
+| Loss | Negative log-likelihood |
+| Teacher forcing | Applied to a whole sentence with probability 0.5 |
+| Decoding | Greedy, at most 15 tokens |
+| Metric | ROUGE-1 and ROUGE-2 F1 on the 2,123 test pairs |
 
-### Decoders
+### Architectures
 
-| Decoder | Used by |
-|---|---|
-| `Decoder` | GRU Baseline, Transformer Encoder |
-| `DecoderLSTM` | LSTM, Bi-LSTM |
-| `DecoderWithAttention` | GRU + Attention (vectorised multiplicative / Bahdanau-style) |
+| Exp | Encoder | Decoder | Notes |
+|:---:|---|---|---|
+| 1 | GRU | GRU | Baseline: the encoder's final state initialises the decoder |
+| 2 | LSTM | LSTM | Hidden and cell states passed to the decoder |
+| 3 | Bi-LSTM | LSTM | The two directions' final states are summed (see Limitations) |
+| 4 | GRU | GRU + attention | Additive (Bahdanau-style, concat) scoring, `vᵀ tanh(W[s; hᵢ])`, computed for all source positions at once |
+| 5 | Transformer encoder | GRU | 2 layers, 8 heads, learnable positional embeddings; outputs mean-pooled into one vector that initialises the decoder |
 
+## Results
 
-## Key Results & Analysis
+Single run on a Google Colab GPU. Full output: [`results/original_run_log.txt`](results/original_run_log.txt).
 
-### Attention is the decisive improvement
+| Exp | Model | ROUGE-1 F1 | ROUGE-2 F1 | Change vs baseline (R-1 / R-2) | Final training loss | Training time |
+|:---:|---|:---:|:---:|:---:|:---:|:---:|
+| 1 | GRU (baseline) | 0.6144 | 0.4280 | — | 1.41 | ≈15 min |
+| 2 | LSTM | 0.5859 | 0.3970 | −4.6% / −7.2% | 1.65 | ≈17 min |
+| 3 | Bi-LSTM | 0.5959 | 0.4070 | −3.0% / −4.9% | 1.63 | ≈20 min |
+| 4 | **GRU + attention** | **0.6309** | **0.4360** | **+2.7% / +1.9%** | **1.33** | ≈22 min |
+| 5 | Transformer encoder | 0.5345 | 0.3495 | −13.0% / −18.3% | 1.80 | ≈14 min |
 
-The attention mechanism allows the decoder to dynamically focus on relevant encoder outputs at
-each decoding step. Compared to the baseline, GRU + Attention achieves:
-- **+2.7% ROUGE-1** and **+1.9% ROUGE-2**
-- **Lowest final training loss** (1.33 vs 1.41 baseline)
-- A 3.7× speedup over an earlier loop-based attention implementation (21 min vs 74 min for 3 epochs)
+Changes are relative to the baseline score. Final training loss is the average over the last 2,000
+training pairs.
 
-### Why simpler beats complex on this dataset
+![Training loss by architecture](loss_comparison.png)
 
-The filtered dataset consists of formulaic short sentences (average ~6 words). GRU's 2-gate
-mechanism generalises better than LSTM's 3-gate design on such sequences, where additional
-expressiveness risks overfitting. The Transformer encoder suffers from learnable positional
-embeddings that do not generalise to short sequences, information loss through mean pooling,
-and insufficient data for self-attention pre-training (~19K pairs vs typically 1M+ required).
+## Findings
 
-### Training dynamics
+1. **Attention gives the best scores.** The attention decoder improves on the GRU baseline by 1.7
+   ROUGE-1 points and 0.8 ROUGE-2 points, and reaches the lowest training loss. The gain is modest
+   and comes from a single run, so it should be confirmed with repeated runs.
+2. **The GRU baseline beats both LSTM variants.** One possible reason is that the LSTM's extra
+   parameters are harder to train with plain SGD in three epochs on short sentences; this was not
+   tested directly.
+3. **The Transformer encoder scores lowest** (−8.0 ROUGE-1 points against the baseline) and has the
+   highest training loss. Likely reasons are that mean-pooling compresses the whole sentence into one
+   vector the decoder cannot look back into, and that a Transformer trained from scratch on 19,105
+   pairs has little data to learn from.
 
-```
-Final NLL Loss after 3 epochs:
-  GRU Baseline  : 1.41
-  LSTM          : 1.65
-  Bi-LSTM       : 1.63
-  GRU+Attention : 1.33  ← lowest
-  Transformer   : 1.80  ← highest
-```
+## Evaluation issues found and corrected
 
-## Repository Structure
+The reported numbers come from the original evaluation code, which had three problems. The notebook
+in this repository fixes them, so a re-run will give somewhat different (generally higher) scores.
 
-```
-seq2seq-machine-translation/
-├── seq2seq_machine_translation.ipynb  # Main notebook (all experiments)
-├── README.md
-└── output/
-    ├── rouge_comparison.png           # ROUGE bar chart
-    └── loss_curves.png                # Training loss curves
-```
+1. **Precision and recall were swapped.** The scoring function received its two arguments in
+   reversed order, so the "precision" values printed in the original log are recall and vice versa.
+   F1 is unaffected.
+2. **The end-of-sentence marker was scored as a word.** Each prediction ended with `<EOS>`, which the
+   ROUGE tokenizer counts as an extra word. This lowers every model's precision and F1; for example,
+   a perfect translation scores a ROUGE-1 F1 of 0.933 instead of 1.0. It affects all models, so it
+   understates absolute scores more than it changes the comparison.
+3. **Inference ran in training mode.** The models were never switched to evaluation mode, so the
+   Transformer encoder's dropout was active during testing, which may have lowered its score further.
+   The other models have no dropout and are unaffected.
 
-## Getting Started
+## Limitations
 
-### 1. Clone and open in Colab (recommended — GPU required)
+These design choices are kept in the notebook so that it matches the reported run:
+
+- **The Bi-LSTM is not truly bidirectional.** The encoder is fed one token per call, so its
+  "backward" direction never sees later words; it behaves like two forward LSTMs. Passing the whole
+  sentence in one call would fix this, and could change the Bi-LSTM result.
+- **Attention design.** The decoder updates its GRU state first and uses the new state to attend
+  (Luong-style placement), then predicts the next word from the attention context alone. Attention
+  also covers the zero-padded slots of the 15-position encoder buffer, which are not masked.
+- **Vocabulary.** Vocabularies are built from all filtered pairs, including the test set.
+- **Training.** Batch size 1, sentence pairs visited in a fixed order, three epochs, and one run
+  per model with no hyperparameter tuning.
+
+## Running the notebook
+
+Open the notebook in Google Colab with a GPU runtime (badge above) and run all cells. All five
+experiments take about 90 minutes on a T4 GPU. Set `SMOKE_TEST = True` in the settings cell to check
+that the code runs in a few minutes on a CPU. Locally:
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/seq2seq-machine-translation.git
-```
-
-Then open `seq2seq_machine_translation.ipynb` in [Google Colab](https://colab.research.google.com/)
-with a **T4 GPU** runtime.
-
-### 2. Run locally
-
-```bash
-pip install torch torchmetrics scikit-learn tqdm pandas matplotlib
+pip install torch torchmetrics scikit-learn pandas matplotlib tqdm
 jupyter notebook seq2seq_machine_translation.ipynb
 ```
 
-> ⚠️ Training all 5 experiments takes ~80–100 minutes on a T4 GPU. Each experiment can be run
-> independently; cells 1–5 (setup + data) must be executed first.
+Seeds are fixed, but GPU kernels are not forced to be deterministic, so re-runs can differ slightly.
 
+## Acknowledgements
 
-## Dependencies
-
-| Package | Version tested |
-|---|---|
-| Python | 3.10+ |
-| PyTorch | 2.0+ |
-| torchmetrics | 1.8+ |
-| scikit-learn | 1.0+ |
-| tqdm | 4.0+ |
-| pandas | 1.5+ |
-| matplotlib | 3.5+ |
-
-
-## Practical Recommendations
-
-**For production seq2seq on constrained domains (short, filtered sentences):**
-
-- ✅ Use **GRU + Attention** as your baseline — it balances performance, speed, and interpretability.
-- ⚠️ Avoid LSTM / Bi-LSTM without improved optimisation (momentum, LR scheduling, dropout).
-- ❌ Do not use Transformer encoders trained from scratch on fewer than ~100K pairs.
-
-**Future improvements to try:**
-
-- Replace Bi-LSTM summation merge with `Linear(cat([h_fwd, h_bwd]))` projection
-- Replace learnable Transformer positional embeddings with sinusoidal encoding
-- Replace mean pooling with attention-based or CLS-token pooling
-- Augment training data to 50K+ pairs via back-translation
-- Use warmup + cosine-annealing LR schedule for LSTM / Transformer
-
-## License
-
-This project is released under the [MIT License](LICENSE).
+- Data pipeline and baseline model adapted from the
+  [PyTorch seq2seq translation tutorial](https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html)
+  (BSD-3-Clause).
+- Sentence pairs from the [Tatoeba Project](https://tatoeba.org) (CC-BY 2.0 FR), distributed by
+  [manythings.org](http://www.manythings.org/anki/).
