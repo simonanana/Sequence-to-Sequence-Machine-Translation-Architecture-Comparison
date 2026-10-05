@@ -288,4 +288,3 @@ Target (English):   i m not even going to comment .
 Baseline Output:    i m not worried about it . <EOS>
 Attention Output:   i m not even to to . <EOS>
 
-================================================================================
